@@ -8,7 +8,8 @@ from matplotlib.widgets import Slider, Button, RadioButtons
 
 from helpers import *
 
-IMAGE = mpimg.imread('test_images/test5.jpg')
+#IMAGE = mpimg.imread('test_images/test5.jpg')
+IMAGE = mpimg.imread('temp/0561_original.jpg') 
 
 def make_combined(img, ksize, xthresh, ythresh, magthresh, dirthresh):
     gradx = abs_sobel_thresh(img, orient='x', sobel_kernel=ksize, thresh=xthresh)

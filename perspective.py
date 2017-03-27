@@ -15,7 +15,7 @@ IMG_SHAPE = (720, 1280, 3)
 #DST = np.array([(260,672),(1050,672),(1050,464),(260,464)], 'float32')
 
 SRC = np.array([(265,677),(1040,677),(677,443),(604,443)], 'float32')
-DST = np.array([(265,720),(1040,720),(1040,-3),(265,-3)], 'float32')
+DST = np.array([(405,720),(900,720),(900,-3),(405,-3)], 'float32')
 
 def perspective_matrix(src=SRC, dst=DST):
     '''Returns perspective and inverse perspective matrices'''
@@ -56,10 +56,10 @@ def skeletonize(img):
 
 def color_threshold(img, sx_thresh=(13,100), s_thresh=(140,235)):    
 
-    # Convert to HSV color space and separate the V channel
-    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HLS).astype(np.float)
-    l_channel = hsv[:,:,1]
-    s_channel = hsv[:,:,2]
+    # Convert to HSL color space and separate the V channel
+    hsl = cv2.cvtColor(img, cv2.COLOR_BGR2HLS).astype(np.float)
+    l_channel = hsl[:,:,1]
+    s_channel = hsl[:,:,2]
     
     # Sobel x
     sobelx = cv2.Sobel(l_channel, cv2.CV_64F, 1, 0) # Take the derivative in x
@@ -106,11 +106,7 @@ def pipeline(img, calibration, M, drawlines=False):
     return (undist, thresh, warped)
 
 if __name__ == '__main__':
-    calibration = None
-    if True:
-        print("Calibrating...")
-        calibration = calibrate()
-        print("Calibration complete")
+    calibration = calibrate()
 
     outfile = os.path.join(OUTPUT_DIR, 'warped.jpg')        
     images = sorted(glob.glob(os.path.join(TEST_IMG_DIR,'*.jpg')))
@@ -123,6 +119,8 @@ if __name__ == '__main__':
 
     vstacked = None
     for i, fname in enumerate(images):
+        if fname.endswith("_original.jpg"):
+            continue
         img = cv2.imread(fname)
         undist, thresh, warped = pipeline(img, calibration, M, True)
         stacked = np.hstack((undist,thresh,warped))

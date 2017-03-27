@@ -3,12 +3,13 @@ import os
 import cv2
 import glob
 import numpy as np
+import pickle
 import matplotlib.pyplot as plt
 
 CALIBRATION_DIR = 'camera_cal'
 TEST_IMG_DIR = 'test_images'
 OUTPUT_DIR = 'output_images'
-IMG_SHAPE = (720, 1280, 3)
+IMG_SHAPE = (1280, 720, 3)
 
 def _objPoints3D(points):
     '''Calculates a grid of points with dimensions provided.
@@ -21,7 +22,13 @@ def _objPoints3D(points):
 
 def calibrate(images=None, points=(9,6)):
     '''Calibrates a camera matrix based on a set of test checkerboard images.'''
-    
+
+    if os.path.exists('calibration.p'):
+        print("Loading calibration from file 'calibration.p'")
+        with open('calibration.p', 'rb') as f:
+            return pickle.load(f)
+    print("Calibrating...")
+                   
     assert(len(points) == 2)
     assert(min(points) > 0)
 
@@ -39,7 +46,7 @@ def calibrate(images=None, points=(9,6)):
     for fname in images:
         img = cv2.imread(fname)
         if img.shape != IMG_SHAPE:
-            img = cv2.resize(img, (IMG_SHAPE[1], IMG_SHAPE[0]))
+            img = cv2.resize(img, (IMG_SHAPE[0], IMG_SHAPE[1]))
             
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         ret, corners = cv2.findChessboardCorners(gray, points, None)
@@ -50,7 +57,13 @@ def calibrate(images=None, points=(9,6)):
             corners2 = cv2.cornerSubPix(gray, corners, (11,11), (-1,-1), criteria)
             imgpoints.append(corners2)
 
-    return cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
+    calibration = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
+
+    with open('calibration.p', 'wb') as f:
+        print("Calibration written to file 'calibration.p'")
+        pickle.dump(calibration, f)
+
+    return calibration
 
 def undistort(img, calibration):
     '''Undistort a single image based on a camera calibration'''
@@ -58,7 +71,7 @@ def undistort(img, calibration):
     # Some of the sample images have an extra pixel, this can mess some subtle
     # things up, so fix it first.
     if img.shape != IMG_SHAPE:
-        img = cv2.resize(img, (IMG_SHAPE[1], IMG_SHAPE[0]))
+        img = cv2.resize(img, (IMG_SHAPE[0], IMG_SHAPE[1]))
 
     # If we have no calibration results, return the image as given
     if calibration is None:
@@ -91,7 +104,7 @@ def undistort_examples(images, calibration):
 
 if __name__ == '__main__':
     outfile1 = os.path.join(OUTPUT_DIR, 'calibration.jpg')
-    outfile2 = os.path.join(OUTPUT_DIR, 'test-images.jpg')
+    outfile2 = os.path.join(OUTPUT_DIR, 'distortion_correction.jpg')
     images = sorted(glob.glob(os.path.join(CALIBRATION_DIR, '*.jpg')))
 
     print("Calibrating...")
