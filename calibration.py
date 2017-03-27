@@ -52,6 +52,23 @@ def calibrate(images=None, points=(9,6)):
 
     return cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
 
+def undistort(img, calibration):
+    '''Undistort a single image based on a camera calibration'''
+
+    # Some of the sample images have an extra pixel, this can mess some subtle
+    # things up, so fix it first.
+    if img.shape != IMG_SHAPE:
+        img = cv2.resize(img, (IMG_SHAPE[1], IMG_SHAPE[0]))
+
+    # If we have no calibration results, return the image as given
+    if calibration is None:
+        return img
+
+    # Otherwise run it through the undistortion process
+    ret, mtx, dist, rvecs, tvecs = calibration
+    return cv2.undistort(img, mtx, dist, None, mtx)
+
+
 def undistort_examples(images, calibration):
     '''Undistorts a set of images based on a camera calibration.
 
@@ -63,10 +80,7 @@ def undistort_examples(images, calibration):
     result = None
     for i, fname in enumerate(images):
         img = cv2.imread(images[i])
-        if img.shape != IMG_SHAPE:
-            img = cv2.resize(img, (IMG_SHAPE[1], IMG_SHAPE[0]))
-            
-        dst = cv2.undistort(img, mtx, dist, None, mtx)
+        dst = undistort(img, calibration)
         sidebyside = np.hstack((img,dst))
         if result is None:
             result = sidebyside
