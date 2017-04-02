@@ -178,7 +178,7 @@ class VideoContext(object):
         font = cv2.FONT_HERSHEY_SIMPLEX
 
         # Add a frame indicator
-        cv2.putText(result, 'frame   %0.4d' % FRAME,
+        cv2.putText(result, 'frame   %0.4d' % self.frame,
                     (img.shape[1]-210, 40), font, 0.8,
                     (255,255,255), 2, cv2.LINE_AA)
         
