@@ -76,7 +76,7 @@ class Line(object):
         self.trim_history()
         
     def points(self):
-        fit = self.recent_xfitted[-1]
+        fit = np.mean(self.recent_xfitted, axis=0)
         fitx = fit[0]*self.ploty**2 + fit[1]*self.ploty + fit[2]
         pts = np.array([x for x in zip(fitx, self.ploty)], np.int32)
         return pts
@@ -93,11 +93,8 @@ class VideoContext(object):
         self.calibration = calibration.calibrate()
         self.M, self.Minv = perspective_matrix()
         
-        print(self.shape, self.clip_in)
-        
     def save(self, outname):
         self.clip = self.clip_in.fl_image(self.next_image)
-        print(self.clip)
         self.clip.write_videofile(outname, audio=False)
 
     def next_image(self, img):
@@ -118,14 +115,46 @@ class VideoContext(object):
         minimap = cv2.bitwise_or(color_markup_masked, color_masked)
         return cv2.resize(minimap, (0,0), fx=0.25, fy=0.25)
 
-    def adjust_window(self, warped):
+    def adjust_window(self, img):
         # TODO: move these to be config not globals
         window_height = WINDOW_HEIGHT
         window_width = WINDOW_WIDTH
+        margin = WINDOW_MARGIN/2
+
+        left_centroids = self.left_line.recent_centroids[-1]
+        right_centroids = self.right_line.recent_centroids[-1]
+
+        window = np.ones(window_width) 
+
+        # Go through each layer looking for max pixel locations
+        for level in range(0,(int)(img.shape[0]/window_height)):
+            # convolve the window into the vertical slice of the image
+            image_layer = np.sum(img[int(img.shape[0]-(level+1)*window_height):int(img.shape[0]-level*window_height),:], axis=0)
+            conv_signal = np.convolve(window, image_layer)
+            
+            offset = window_width/2
+            target = [level, level-1][level > 0]
+            l_min_index = int(max(left_centroids[target].mean+offset-margin,0))
+            l_max_index = int(min(left_centroids[target].mean+offset+margin,img.shape[1]))
+            r_min_index = int(max(right_centroids[target].mean+offset-margin,0))
+            r_max_index = int(min(right_centroids[target].mean+offset+margin,img.shape[1]))
+
+            l_conv = np.array(conv_signal[l_min_index:l_max_index])
+            r_conv = np.array(conv_signal[r_min_index:r_max_index])
+            l_center, r_center = find_centers(l_conv, r_conv, l_min_index, r_min_index,
+                                              [left_centroids[level]], [right_centroids[level]])
+
+            # If one fit is significantly better than the other then simply adjust by lane width
+            if l_center.magnitude > 2*r_center.magnitude:
+                r_center.mean = l_center.mean+495
+            if r_center.magnitude > 2*l_center.magnitude:
+                l_center.mean = r_center.mean-495
+            
+            left_centroids[level] = l_center
+            right_centroids[level] = r_center
         
-        left_centroids, right_centroids = find_window_centroids(warped)
         (masked, indicators, left_fit,
-         right_fit) = find_window(warped, left_centroids, right_centroids)
+         right_fit) = find_window(img, left_centroids, right_centroids)
         return (masked, indicators, left_fit, right_fit, left_centroids, right_centroids)
     
     
@@ -198,15 +227,15 @@ class VideoContext(object):
             curve_display = ' >9999m'
         else:
             curve_display = '%6dm' % int(curve)
-        cv2.putText(result, 'curvature %s' % curve_display,
-                    (img.shape[1]-255, 70), font, 0.8,
-                    (255,255,255), 2, cv2.LINE_AA)
+            cv2.putText(result, 'curvature %s' % curve_display,
+                        (img.shape[1]-255, 70), font, 0.8,
+                        (255,255,255), 2, cv2.LINE_AA)
 
         # Display offset from center
         mean_center = np.mean(self.left_line.recent_center)
         cv2.putText(result, 'center  %+3.2fm' % mean_center,
-                (img.shape[1]-220, 100), font, 0.8,
-                (255,255,255), 2, cv2.LINE_AA)
+                    (img.shape[1]-220, 100), font, 0.8,
+                    (255,255,255), 2, cv2.LINE_AA)
         
         self.frame += 1
         return result

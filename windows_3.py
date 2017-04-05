@@ -110,6 +110,8 @@ def find_centers(l_conv, r_conv, l_offset, r_offset, l_historic = [], r_historic
         l_clusters = [Cluster(l_historic[0].mean, 0)]
     if len(r_clusters) == 0 and len(r_historic) > 0:
         r_clusters = [Cluster(r_historic[0].mean, 0)]
+    if len(r_clusters) == 0:
+        r_clusters = [Cluster(1000,0)]
 
 
     # Summaries ensures that the mean values are filled out
@@ -233,6 +235,9 @@ def process_image(img, calibration=None, write_output=False):
     M, Minv = perspective_matrix()
     _, _, warped = pipeline(img, calibration, M)
 
+    plt.imshow(warped)
+    plt.show()
+    
     left_centroids, right_centroids = find_window_centroids(warped)
     masked, indicators, left_fit, right_fit = find_window(warped, left_centroids, right_centroids)
 
@@ -320,8 +325,8 @@ if __name__ == '__main__':
     calibration = calibrate()
     
     files = glob.glob(os.path.join(TEST_IMG_DIR,'*.jpg'))
-    #files = [os.path.join(TEST_IMG_DIR, 'straight_lines1.jpg')]
-    #files = [os.path.join(TEST_IMG_DIR, '0566_original.jpg')]
+    #files = [os.path.join(TEST_IMG_DIR, 'test1.jpg')]
+    files = [os.path.join(TEST_IMG_DIR, '1001_original.jpg')]
     #files = files[-4:-3]
     #files = files[-2:-1]
     #files = files[0:1]

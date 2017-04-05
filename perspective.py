@@ -15,7 +15,7 @@ IMG_SHAPE = (720, 1280, 3)
 #DST = np.array([(260,672),(1050,672),(1050,464),(260,464)], 'float32')
 
 SRC = np.array([(265,677),(1040,677),(677,443),(604,443)], 'float32')
-DST = np.array([(405,720),(900,720),(900,-3),(405,-3)], 'float32')
+DST = np.array([(405,710),(900,710),(900,-100),(405,-100)], 'float32')
 
 def perspective_matrix(src=SRC, dst=DST):
     '''Returns perspective and inverse perspective matrices'''
@@ -54,15 +54,17 @@ def skeletonize(img):
 #def color_threshold(img, sx_thresh=(20,100), s_thresh=(170,255)):
 #def color_threshold(img, sx_thresh=(18,100), s_thresh=(175,235)):
 
-def color_threshold(img, sx_thresh=(13,100), s_thresh=(140,235)):    
+def color_threshold(img, sx_thresh=(30,100), s_thresh=(140,235)):    
 
     # Convert to HSL color space and separate the V channel
-    hsl = cv2.cvtColor(img, cv2.COLOR_BGR2HLS).astype(np.float)
+    hsl = cv2.cvtColor(img, cv2.COLOR_RGB2HLS).astype(np.float)
     l_channel = hsl[:,:,1]
     s_channel = hsl[:,:,2]
+
+    l_blurred = cv2.blur(l_channel, (5,5))    
     
     # Sobel x
-    sobelx = cv2.Sobel(l_channel, cv2.CV_64F, 1, 0) # Take the derivative in x
+    sobelx = cv2.Sobel(l_blurred, cv2.CV_64F, 1, 0) # Take the derivative in x
     abs_sobelx = np.absolute(sobelx) # Absolute x derivative to accentuate lines away from horizontal
     scaled_sobel = np.uint8(255*abs_sobelx/np.max(abs_sobelx))
     
@@ -84,8 +86,7 @@ def color_threshold(img, sx_thresh=(13,100), s_thresh=(140,235)):
     combined_binary = np.zeros_like(sxbinary)
     combined_binary[(s_binary == 1) | (sxbinary == 1)] = 1
 
-    blurred = cv2.blur(combined_binary, (3,3))
-    return blurred
+    return combined_binary
 
 def bin2Color(img):
     return np.dstack((img,img,img))*255
@@ -119,8 +120,8 @@ if __name__ == '__main__':
 
     vstacked = None
     for i, fname in enumerate(images):
-        if fname.endswith("_original.jpg"):
-            continue
+        #if fname.endswith("_original.jpg"):
+        #    continue
         img = cv2.imread(fname)
         undist, thresh, warped = pipeline(img, calibration, M, True)
         stacked = np.hstack((undist,thresh,warped))
